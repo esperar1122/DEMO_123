@@ -4,7 +4,7 @@ import { useUserStore } from '@/stores/user'
 const routes = [
   {
     path: '/',
-    redirect: '/home'
+    redirect: '/login'
   },
   {
     path: '/login',
@@ -19,12 +19,20 @@ const routes = [
   {
     path: '/home',
     name: 'Home',
-    component: () => import('@/views/Home.vue')
+    component: () => import('@/views/Home.vue'),
+    meta: { requiresAuth: true }
   },
   {
     path: '/item/:id',
     name: 'ItemDetail',
-    component: () => import('@/views/ItemDetail.vue')
+    component: () => import('@/views/ItemDetail.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/chat/:itemId',
+    name: 'Chat',
+    component: () => import('@/views/Chat.vue'),
+    meta: { requiresAuth: true }
   },
   {
     path: '/publish',

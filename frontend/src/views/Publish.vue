@@ -24,7 +24,7 @@
         
         <el-form-item label="商品图片">
           <el-upload
-            v-model:file-list="fileList"
+            :file-list="fileList"
             action="/api/upload"
             list-type="picture-card"
             :auto-upload="false"

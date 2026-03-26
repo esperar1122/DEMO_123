@@ -11,6 +11,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,8 +47,23 @@ public class ItemController {
             @RequestParam(required = false) String keyword) {
         try {
             Page<Item> items = itemService.getActiveItems(page, size, keyword);
+            
+            List<Map<String, Object>> records = new ArrayList<>();
+            for (Item item : items.getRecords()) {
+                Map<String, Object> itemMap = new HashMap<>();
+                itemMap.put("id", item.getId());
+                itemMap.put("title", item.getTitle());
+                itemMap.put("description", item.getDescription());
+                itemMap.put("price", item.getPrice());
+                itemMap.put("status", item.getStatus());
+                itemMap.put("sellerId", item.getSellerId());
+                itemMap.put("createdAt", item.getCreatedAt());
+                itemMap.put("images", itemService.getItemImages(item.getId()));
+                records.add(itemMap);
+            }
+            
             Map<String, Object> result = new HashMap<>();
-            result.put("records", items.getRecords());
+            result.put("records", records);
             result.put("total", items.getTotal());
             result.put("pages", items.getPages());
             result.put("current", items.getCurrent());

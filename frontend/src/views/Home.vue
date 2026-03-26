@@ -9,6 +9,9 @@
           </template>
         </el-input>
         <el-button type="primary" @click="$router.push('/publish')">发布商品</el-button>
+        <el-badge :value="unreadCount" :hidden="unreadCount === 0" :max="99">
+          <el-button :icon="Bell" circle @click="handleNotificationClick2" />
+        </el-badge>
         <el-dropdown @command="handleCommand">
           <span class="user-info">
             <span>{{ userStore.username || '用户' }}</span>
@@ -53,6 +56,37 @@
         />
       </div>
     </div>
+
+    <el-dialog v-model="showNotifications" title="我的通知" width="500px">
+      <div class="notifications-list">
+        <div 
+          v-for="notification in notifications" 
+          :key="notification.id" 
+          class="notification-item"
+          :class="{ unread: !notification.isRead }"
+          @click="handleNotificationClick(notification)"
+        >
+          <div class="notification-content-wrapper">
+            <div class="notification-title">{{ notification.title }}</div>
+            <div class="notification-content">{{ notification.content }}</div>
+            <div class="notification-time">{{ formatTime(notification.createdAt) }}</div>
+          </div>
+          <el-button 
+            type="danger" 
+            size="small" 
+            circle 
+            :icon="Close" 
+            @click.stop="handleDeleteNotification(notification.id)"
+          />
+        </div>
+        <el-empty v-if="notifications.length === 0" description="暂无通知" />
+      </div>
+      <template #footer>
+        <el-button @click="handleClearAllNotifications">清空全部</el-button>
+        <el-button @click="handleMarkAllAsRead">全部标记已读</el-button>
+        <el-button type="primary" @click="handleCloseNotifications">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -60,8 +94,8 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { itemAPI } from '@/api'
-import { Search } from '@element-plus/icons-vue'
+import { itemAPI, notificationAPI } from '@/api'
+import { Search, Bell, Close } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 const router = useRouter()
@@ -73,8 +107,107 @@ const pageSize = ref(12)
 const total = ref(0)
 const loading = ref(false)
 const keyword = ref('')
+const unreadCount = ref(0)
+const notifications = ref([])
+const showNotifications = ref(false)
 
 const isAdmin = computed(() => userStore.isAdmin)
+
+const loadUnreadCount = async () => {
+  try {
+    const res = await notificationAPI.getUnreadCount()
+    if (res.code === 200) {
+      unreadCount.value = res.data.count
+    }
+  } catch (error) {
+    console.error('获取未读数量失败', error)
+  }
+}
+
+const loadNotifications = async () => {
+  try {
+    const res = await notificationAPI.getNotifications()
+    if (res.code === 200) {
+      notifications.value = res.data.notifications
+      unreadCount.value = res.data.unreadCount
+    }
+  } catch (error) {
+    console.error('获取通知失败', error)
+  }
+}
+
+const handleNotificationClick = async (notification) => {
+  if (!notification.isRead) {
+    await notificationAPI.markAsRead(notification.id)
+    loadUnreadCount()
+  }
+  if (notification.relatedId) {
+    showNotifications.value = false
+    router.push(`/chat/${notification.relatedId}`)
+  }
+}
+
+const handleNotificationClick2 = async () => {
+  showNotifications.value = true
+  loadNotifications()
+  startPolling()
+}
+
+let pollingTimer = null
+
+const startPolling = () => {
+  if (pollingTimer) clearInterval(pollingTimer)
+  pollingTimer = setInterval(() => {
+    loadNotifications()
+    loadUnreadCount()
+  }, 3000)
+}
+
+const stopPolling = () => {
+  if (pollingTimer) {
+    clearInterval(pollingTimer)
+    pollingTimer = null
+  }
+}
+
+const handleCloseNotifications = () => {
+  showNotifications.value = false
+  stopPolling()
+}
+
+const handleMarkAllAsRead = async () => {
+  try {
+    await notificationAPI.markAllAsRead()
+    loadNotifications()
+    ElMessage.success('已标记全部已读')
+  } catch (error) {
+    ElMessage.error('操作失败')
+  }
+}
+
+const handleDeleteNotification = async (id) => {
+  try {
+    await notificationAPI.deleteNotification(id)
+    loadNotifications()
+    loadUnreadCount()
+    ElMessage.success('删除成功')
+  } catch (error) {
+    ElMessage.error('删除失败')
+  }
+}
+
+const handleClearAllNotifications = async () => {
+  try {
+    for (const notification of notifications.value) {
+      await notificationAPI.deleteNotification(notification.id)
+    }
+    loadNotifications()
+    loadUnreadCount()
+    ElMessage.success('已清空全部通知')
+  } catch (error) {
+    ElMessage.error('清空失败')
+  }
+}
 
 const loadItems = async () => {
   loading.value = true
@@ -115,6 +248,9 @@ const formatTime = (time) => {
 
 onMounted(() => {
   loadItems()
+  if (userStore.isLoggedIn) {
+    loadUnreadCount()
+  }
 })
 </script>
 
@@ -224,5 +360,48 @@ onMounted(() => {
   margin-top: 20px;
   display: flex;
   justify-content: center;
+}
+
+.notifications-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.notification-item {
+  padding: 15px;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.notification-item:hover {
+  background: #f5f5f5;
+}
+
+.notification-item.unread {
+  background: #e6f7ff;
+}
+
+.notification-content-wrapper {
+  flex: 1;
+}
+
+.notification-title {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.notification-content {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 5px;
+}
+
+.notification-time {
+  color: #909399;
+  font-size: 12px;
 }
 </style>

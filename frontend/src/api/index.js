@@ -67,4 +67,17 @@ export const adminAPI = {
   getDashboard: () => api.get('/admin/dashboard')
 }
 
+export const messageAPI = {
+  createMessage: (data) => api.post('/messages', data),
+  getMessagesByItem: (itemId) => api.get(`/messages/item/${itemId}`)
+}
+
+export const notificationAPI = {
+  getNotifications: () => api.get('/notifications'),
+  markAsRead: (id) => api.put(`/notifications/${id}/read`),
+  markAllAsRead: () => api.put('/notifications/read-all'),
+  getUnreadCount: () => api.get('/notifications/unread-count'),
+  deleteNotification: (id) => api.delete(`/notifications/${id}`)
+}
+
 export default api

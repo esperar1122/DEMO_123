@@ -54,7 +54,7 @@ public class UserService {
     public Map<String, Object> getDashboardStats() {
         Long totalUsers = userMapper.selectCount(new QueryWrapper<>());
         Long totalItems = itemMapper.selectCount(new QueryWrapper<Item>().eq("deleted", 0));
-        Long totalOrders = orderMapper.selectCount(new QueryWrapper<Order>().eq("deleted", 0));
+        orderMapper.selectCount(new QueryWrapper<Order>().eq("deleted", 0));
 
         QueryWrapper<User> todayWrapper = new QueryWrapper<>();
         todayWrapper.apply("DATE(created_at) = CURDATE()");

@@ -43,6 +43,45 @@
       </div>
     </div>
 
+    <div class="message-section" v-if="item">
+      <el-card>
+        <template #header>
+          <div class="message-header">
+            <span>留言板</span>
+            <el-button v-if="isLoggedIn" type="primary" size="small" @click="showMessageInput = true">
+              留言
+            </el-button>
+          </div>
+        </template>
+
+        <div v-if="showMessageInput" class="message-input">
+          <el-input
+            v-model="newMessage"
+            type="textarea"
+            :rows="3"
+            placeholder="请输入留言内容（最多500字）"
+            maxlength="500"
+            show-word-limit
+          />
+          <div class="message-actions">
+            <el-button @click="showMessageInput = false; newMessage = ''">取消</el-button>
+            <el-button type="primary" @click="submitMessage" :loading="submitting">提交</el-button>
+          </div>
+        </div>
+
+        <div class="messages-list">
+          <div v-for="msg in messages" :key="msg.id" class="message-item">
+            <div class="message-header">
+              <span class="username">{{ msg.username }}</span>
+              <span class="time">{{ formatTime(msg.createdAt) }}</span>
+            </div>
+            <div class="message-content">{{ msg.content }}</div>
+          </div>
+          <el-empty v-if="messages.length === 0" description="暂无留言" />
+        </div>
+      </el-card>
+    </div>
+
     <el-dialog v-model="orderDialogVisible" title="确认订单" width="500px">
       <el-form :model="orderForm" label-width="100px">
         <el-form-item label="交易方式">
@@ -68,7 +107,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { itemAPI, orderAPI, userAPI } from '@/api'
+import { itemAPI, orderAPI, userAPI, messageAPI } from '@/api'
 import { ElMessage } from 'element-plus'
 
 const route = useRoute()
@@ -84,6 +123,11 @@ const orderForm = ref({
   transactionType: 0,
   deliveryAddress: ''
 })
+
+const messages = ref([])
+const showMessageInput = ref(false)
+const newMessage = ref('')
+const submitting = ref(false)
 
 const isLoggedIn = computed(() => userStore.isLoggedIn)
 const isOwner = computed(() => item.value?.sellerId === userStore.userId)
@@ -126,12 +170,54 @@ const loadSellerInfo = async (sellerId) => {
   }
 }
 
+const loadMessages = async () => {
+  try {
+    const res = await messageAPI.getMessagesByItem(route.params.id)
+    if (res.code === 200) {
+      messages.value = res.data
+    }
+  } catch (error) {
+    console.error('加载留言失败', error)
+  }
+}
+
+const submitMessage = async () => {
+  if (!newMessage.value.trim()) {
+    ElMessage.warning('请输入留言内容')
+    return
+  }
+  
+  submitting.value = true
+  try {
+    const res = await messageAPI.createMessage({
+      itemId: item.value.id,
+      content: newMessage.value
+    })
+    if (res.code === 200) {
+      ElMessage.success('留言成功')
+      showMessageInput.value = false
+      newMessage.value = ''
+      loadMessages()
+    }
+  } catch (error) {
+    ElMessage.error(error.message || '留言失败')
+  } finally {
+    submitting.value = false
+  }
+}
+
+const formatTime = (time) => {
+  if (!time) return ''
+  const date = new Date(time)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
 const handleBuy = () => {
   if (!userStore.isLoggedIn) {
     router.push('/login')
     return
   }
-  orderDialogVisible.value = true
+  router.push(`/chat/${item.value.id}`)
 }
 
 const submitOrder = async () => {
@@ -153,6 +239,7 @@ const submitOrder = async () => {
 
 onMounted(() => {
   loadItem()
+  loadMessages()
 })
 </script>
 
@@ -274,5 +361,64 @@ onMounted(() => {
 
 .actions {
   margin-top: 30px;
+}
+
+.message-section {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
+
+.message-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.message-input {
+  margin-bottom: 20px;
+  padding: 15px;
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+
+.message-actions {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.messages-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.message-item {
+  padding: 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.message-item:last-child {
+  border-bottom: none;
+}
+
+.message-item .message-header {
+  margin-bottom: 8px;
+}
+
+.message-item .username {
+  font-weight: bold;
+  color: #409eff;
+}
+
+.message-item .time {
+  color: #909399;
+  font-size: 12px;
+}
+
+.message-item .message-content {
+  color: #333;
+  line-height: 1.6;
 }
 </style>
