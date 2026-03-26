@@ -3,45 +3,53 @@
     <el-tabs v-model="activeTab">
       <el-tab-pane label="我买到的" name="buyer">
         <div class="orders-list">
-          <div v-for="order in buyerOrders" :key="order.id" class="order-card">
-            <div class="order-header">
-              <span>订单号: {{ order.id }}</span>
-              <span class="status">{{ getOrderStatus(order.status) }}</span>
+          <template v-if="buyerOrders.length > 0">
+            <div v-for="orderData in buyerOrders" :key="orderData.order?.id" class="order-card">
+              <div class="order-header">
+                <span>订单号: {{ orderData.order?.id }}</span>
+                <span class="status">{{ getOrderStatus(orderData.order?.status) }}</span>
+              </div>
+              <div class="order-body">
+                <p>商品ID: {{ orderData.order?.itemId }}</p>
+                <p>交易方式: {{ getTransactionType(orderData.order?.transactionType) }}</p>
+                <p class="price">总价: ¥{{ orderData.order?.totalPrice }}</p>
+                <p>创建时间: {{ formatTime(orderData.order?.createdAt) }}</p>
+              </div>
+              <div class="order-actions">
+                <el-button size="small" @click="handleCancel(orderData.order)" v-if="orderData.order?.status === 0">取消订单</el-button>
+                <el-button size="small" type="primary" @click="handleComplete(orderData.order)" v-if="orderData.order?.status === 1">确认收货</el-button>
+                <el-button size="small" type="warning" @click="handleReview(orderData.order)" v-if="orderData.order?.status === 2 && !orderData.hasReviewed">评价</el-button>
+                <el-tag v-if="orderData.order?.status === 2 && orderData.hasReviewed" type="success">已评价</el-tag>
+              </div>
             </div>
-            <div class="order-body">
-              <p>商品ID: {{ order.itemId }}</p>
-              <p>交易方式: {{ getTransactionType(order.transactionType) }}</p>
-              <p class="price">总价: ¥{{ order.totalPrice }}</p>
-              <p>创建时间: {{ formatTime(order.createdAt) }}</p>
-            </div>
-            <div class="order-actions">
-              <el-button size="small" @click="handleCancel(order)" v-if="order.status === 0">取消订单</el-button>
-              <el-button size="small" type="primary" @click="handleComplete(order)" v-if="order.status === 1">确认收货</el-button>
-            </div>
-          </div>
-          <el-empty v-if="buyerOrders.length === 0" description="暂无订单" />
+          </template>
+          <el-empty v-else description="暂无订单" />
         </div>
       </el-tab-pane>
 
       <el-tab-pane label="我卖出的" name="seller">
         <div class="orders-list">
-          <div v-for="order in sellerOrders" :key="order.id" class="order-card">
-            <div class="order-header">
-              <span>订单号: {{ order.id }}</span>
-              <span class="status">{{ getOrderStatus(order.status) }}</span>
+          <template v-if="sellerOrders.length > 0">
+            <div v-for="orderData in sellerOrders" :key="orderData.order?.id" class="order-card">
+              <div class="order-header">
+                <span>订单号: {{ orderData.order?.id }}</span>
+                <span class="status">{{ getOrderStatus(orderData.order?.status) }}</span>
+              </div>
+              <div class="order-body">
+                <p>商品ID: {{ orderData.order?.itemId }}</p>
+                <p>交易方式: {{ getTransactionType(orderData.order?.transactionType) }}</p>
+                <p class="price">总价: ¥{{ orderData.order?.totalPrice }}</p>
+                <p>创建时间: {{ formatTime(orderData.order?.createdAt) }}</p>
+              </div>
+              <div class="order-actions">
+                <el-button size="small" type="success" @click="handleConfirm(orderData.order)" v-if="orderData.order?.status === 0">确认订单</el-button>
+                <el-button size="small" type="danger" @click="handleReject(orderData.order)" v-if="orderData.order?.status === 0">拒绝订单</el-button>
+                <el-button size="small" type="warning" @click="handleReview(orderData.order)" v-if="orderData.order?.status === 2 && !orderData.hasReviewed">评价</el-button>
+                <el-tag v-if="orderData.order?.status === 2 && orderData.hasReviewed" type="success">已评价</el-tag>
+              </div>
             </div>
-            <div class="order-body">
-              <p>商品ID: {{ order.itemId }}</p>
-              <p>交易方式: {{ getTransactionType(order.transactionType) }}</p>
-              <p class="price">总价: ¥{{ order.totalPrice }}</p>
-              <p>创建时间: {{ formatTime(order.createdAt) }}</p>
-            </div>
-            <div class="order-actions">
-              <el-button size="small" type="success" @click="handleConfirm(order)" v-if="order.status === 0">确认订单</el-button>
-              <el-button size="small" type="danger" @click="handleReject(order)" v-if="order.status === 0">拒绝订单</el-button>
-            </div>
-          </div>
-          <el-empty v-if="sellerOrders.length === 0" description="暂无订单" />
+          </template>
+          <el-empty v-else description="暂无订单" />
         </div>
       </el-tab-pane>
     </el-tabs>
@@ -50,8 +58,11 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { orderAPI } from '@/api'
 import { ElMessage, ElMessageBox } from 'element-plus'
+
+const router = useRouter()
 
 const activeTab = ref('buyer')
 const buyerOrders = ref([])
@@ -63,9 +74,12 @@ const loadOrders = async () => {
       orderAPI.getBuyerOrders(),
       orderAPI.getSellerOrders()
     ])
-    if (buyerRes.code === 200) buyerOrders.value = buyerRes.data
-    if (sellerRes.code === 200) sellerOrders.value = sellerRes.data
+    console.log('Buyer orders response:', buyerRes)
+    console.log('Seller orders response:', sellerRes)
+    if (buyerRes.code === 200) buyerOrders.value = buyerRes.data || []
+    if (sellerRes.code === 200) sellerOrders.value = sellerRes.data || []
   } catch (error) {
+    console.error('Load orders error:', error)
     ElMessage.error('加载订单失败')
   }
 }
@@ -133,6 +147,10 @@ const handleComplete = async (order) => {
       ElMessage.error(error.message || '操作失败')
     }
   }
+}
+
+const handleReview = (order) => {
+  router.push(`/review?orderId=${order.id}`)
 }
 
 onMounted(() => {

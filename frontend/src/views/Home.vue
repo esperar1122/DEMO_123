@@ -143,7 +143,13 @@ const handleNotificationClick = async (notification) => {
   }
   if (notification.relatedId) {
     showNotifications.value = false
-    router.push(`/chat/${notification.relatedId}`)
+    if (notification.type === 'order') {
+      router.push('/orders?tab=seller')
+    } else if (notification.type === 'review') {
+      router.push(`/review?orderId=${notification.relatedId}`)
+    } else {
+      router.push(`/chat/${notification.relatedId}`)
+    }
   }
 }
 
@@ -186,12 +192,19 @@ const handleMarkAllAsRead = async () => {
 }
 
 const handleDeleteNotification = async (id) => {
+  console.log('Deleting notification with id:', id, typeof id)
   try {
-    await notificationAPI.deleteNotification(id)
-    loadNotifications()
-    loadUnreadCount()
-    ElMessage.success('删除成功')
+    const res = await notificationAPI.deleteNotification(id)
+    console.log('Delete response:', res)
+    if (res.code === 200) {
+      loadNotifications()
+      loadUnreadCount()
+      ElMessage.success('删除成功')
+    } else {
+      ElMessage.error(res.message || '删除失败')
+    }
   } catch (error) {
+    console.error('Delete error:', error)
     ElMessage.error('删除失败')
   }
 }

@@ -7,11 +7,14 @@ import com.campus.secondhand.entity.Order;
 import com.campus.secondhand.entity.User;
 import com.campus.secondhand.mapper.ItemMapper;
 import com.campus.secondhand.mapper.OrderMapper;
+import com.campus.secondhand.mapper.ReviewMapper;
 import com.campus.secondhand.mapper.UserMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class OrderService {
@@ -20,12 +23,17 @@ public class OrderService {
     private final ItemMapper itemMapper;
     private final UserMapper userMapper;
     private final CreditService creditService;
+    private final NotificationService notificationService;
+    private final ReviewMapper reviewMapper;
 
-    public OrderService(OrderMapper orderMapper, ItemMapper itemMapper, UserMapper userMapper, CreditService creditService) {
+    public OrderService(OrderMapper orderMapper, ItemMapper itemMapper, UserMapper userMapper, 
+                        CreditService creditService, NotificationService notificationService, ReviewMapper reviewMapper) {
         this.orderMapper = orderMapper;
         this.itemMapper = itemMapper;
         this.userMapper = userMapper;
         this.creditService = creditService;
+        this.notificationService = notificationService;
+        this.reviewMapper = reviewMapper;
     }
 
     @Transactional
@@ -62,6 +70,14 @@ public class OrderService {
         order.setStatus(0);
         orderMapper.insert(order);
 
+        notificationService.createNotification(
+            item.getSellerId(),
+            "order",
+            "新订单提醒",
+            "您的商品 '" + item.getTitle() + "' 已被下单，请及时处理",
+            order.getId()
+        );
+
         return order;
     }
 
@@ -73,21 +89,35 @@ public class OrderService {
         return order;
     }
 
-    public List<Order> getBuyerOrders(Long buyerId) {
-        return orderMapper.selectList(
+    public List<Map<String, Object>> getBuyerOrders(Long buyerId) {
+        List<Order> orders = orderMapper.selectList(
             new QueryWrapper<Order>()
                 .eq("buyer_id", buyerId)
                 .eq("deleted", 0)
                 .orderByDesc("created_at")
         );
+        return enrichOrdersWithReviewStatus(orders, buyerId);
     }
 
-    public List<Order> getSellerOrders(Long sellerId) {
+    public List<Map<String, Object>> getSellerOrders(Long sellerId) {
         QueryWrapper<Order> wrapper = new QueryWrapper<>();
         wrapper.exists(
             "SELECT 1 FROM items WHERE items.id = orders.item_id AND items.seller_id = " + sellerId
         ).eq("deleted", 0).orderByDesc("created_at");
-        return orderMapper.selectList(wrapper);
+        List<Order> orders = orderMapper.selectList(wrapper);
+        return enrichOrdersWithReviewStatus(orders, sellerId);
+    }
+
+    private List<Map<String, Object>> enrichOrdersWithReviewStatus(List<Order> orders, Long userId) {
+        List<Map<String, Object>> result = new java.util.ArrayList<>();
+        for (Order order : orders) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("order", order);
+            int reviewCount = reviewMapper.countByOrderAndReviewer(order.getId(), userId);
+            map.put("hasReviewed", reviewCount > 0);
+            result.add(map);
+        }
+        return result;
     }
 
     @Transactional
@@ -186,6 +216,22 @@ public class OrderService {
 
         creditService.updateCredit(item.getSellerId(), 2);
         creditService.updateCredit(order.getBuyerId(), 2);
+
+        notificationService.createNotification(
+            item.getSellerId(),
+            "review",
+            "交易完成提醒",
+            "您的商品 '" + item.getTitle() + "' 已完成交易，请评价买家",
+            order.getId()
+        );
+
+        notificationService.createNotification(
+            order.getBuyerId(),
+            "review",
+            "交易完成提醒",
+            "您购买的 '" + item.getTitle() + "' 已完成交易，请对卖家进行评价",
+            order.getId()
+        );
 
         return order;
     }

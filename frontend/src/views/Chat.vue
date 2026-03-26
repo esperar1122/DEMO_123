@@ -78,7 +78,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, computed } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { itemAPI, orderAPI, userAPI, messageAPI } from '@/api'
@@ -209,9 +209,22 @@ const submitOrder = async () => {
 }
 
 onMounted(() => {
-  loadItem()
-  loadMessages()
-  setInterval(loadMessages, 3000)
+  if (route.params.itemId) {
+    loadItem()
+    loadMessages()
+    timer = setInterval(() => {
+      if (item.value?.id) {
+        loadMessages()
+      }
+    }, 3000)
+  } else {
+    ElMessage.error('商品不存在')
+    router.push('/home')
+  }
+})
+
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
 })
 </script>
 

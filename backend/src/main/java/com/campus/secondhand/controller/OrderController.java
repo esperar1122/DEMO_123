@@ -62,9 +62,9 @@ public class OrderController {
     }
 
     @GetMapping("/buyer")
-    public Result<List<Order>> getMyBuyOrders(@AuthenticationPrincipal User user) {
+    public Result<List<Map<String, Object>>> getMyBuyOrders(@AuthenticationPrincipal User user) {
         try {
-            List<Order> orders = orderService.getBuyerOrders(user.getId());
+            List<Map<String, Object>> orders = orderService.getBuyerOrders(user.getId());
             return Result.success(orders);
         } catch (Exception e) {
             return Result.error(500, "获取订单列表失败: " + e.getMessage());
@@ -72,9 +72,9 @@ public class OrderController {
     }
 
     @GetMapping("/seller")
-    public Result<List<Order>> getMySellOrders(@AuthenticationPrincipal User user) {
+    public Result<List<Map<String, Object>>> getMySellOrders(@AuthenticationPrincipal User user) {
         try {
-            List<Order> orders = orderService.getSellerOrders(user.getId());
+            List<Map<String, Object>> orders = orderService.getSellerOrders(user.getId());
             return Result.success(orders);
         } catch (Exception e) {
             return Result.error(500, "获取订单列表失败: " + e.getMessage());
