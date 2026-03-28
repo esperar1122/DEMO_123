@@ -1,0 +1,43 @@
+{
+  "project_name": "轻量化校园二手交易平台",
+  "version": "1.3.0",
+  "tech_stack": {
+    "frontend": ["Vue3", "Vite", "Element Plus"],
+    "backend": ["SpringBoot 3", "Java 17"],
+    "database": ["MySQL 8.0"]
+  },
+  "modules": [
+    {
+      "id": "M01",
+      "name": "用户管理",
+      "features": ["注册登录", "个人信息管理", "信用评级"]
+    },
+    {
+      "id": "M02",
+      "name": "商品管理",
+      "features": ["商品发布", "编辑", "列表展示", "详情查看"]
+    },
+    {
+      "id": "M03",
+      "name": "搜索与筛选",
+      "features": ["关键词搜索", "分类筛选", "区域筛选"]
+    },
+    {
+      "id": "M04",
+      "name": "交易管理",
+      "features": ["商品咨询", "交易方式选择", "交易记录查看"]
+    },
+    {
+      "id": "M05",
+      "name": "通知系统",
+      "features": ["系统通知", "交易通知", "提醒功能"]
+    },
+    {
+      "id": "M06",
+      "name": "管理后台",
+      "features": ["用户管理", "商品管理", "交易管理", "数据统计"]
+    }
+  ],
+  "acceptance_criteria_count": 6,
+  "status": "ready_for_design"
+}
